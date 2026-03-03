@@ -3,39 +3,44 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 
-import HomeScreen from './src/screens/HomeScreen';
-import DetailScreen from './src/screens/DetailScreen';
+import { EventsProvider } from './src/hooks/useEvents';
+import CalendarScreen from './src/screens/CalendarScreen';
+import AddEventScreen from './src/screens/AddEventScreen';
+import { Colors } from './src/utils/colors';
 
 export type RootStackParamList = {
-  Home: undefined;
-  Detail: { title: string };
+  Calendar: undefined;
+  AddEvent: { dateKey: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <StatusBar style="auto" />
-      <Stack.Navigator
-        initialRouteName="Home"
-        screenOptions={{
-          headerStyle: { backgroundColor: '#6200ee' },
-          headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: 'bold' },
-        }}
-      >
-        <Stack.Screen
-          name="Home"
-          component={HomeScreen}
-          options={{ title: 'walww3000' }}
-        />
-        <Stack.Screen
-          name="Detail"
-          component={DetailScreen}
-          options={({ route }) => ({ title: route.params.title })}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <EventsProvider>
+      <NavigationContainer>
+        <StatusBar style="dark" />
+        <Stack.Navigator
+          initialRouteName="Calendar"
+          screenOptions={{
+            headerStyle: { backgroundColor: Colors.surface },
+            headerTintColor: Colors.text,
+            headerTitleStyle: { fontWeight: '700' },
+            headerShadowVisible: false,
+          }}
+        >
+          <Stack.Screen
+            name="Calendar"
+            component={CalendarScreen}
+            options={{ title: '日历' }}
+          />
+          <Stack.Screen
+            name="AddEvent"
+            component={AddEventScreen}
+            options={{ title: '新建事件' }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </EventsProvider>
   );
 }
