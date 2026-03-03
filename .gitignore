@@ -1,6 +1,9 @@
 # APK 构建输出
 build/
 
+# 构建时自动复制的网页资源
+app/src/main/assets/
+
 # Android Studio / IntelliJ
 .idea/
 *.iml
