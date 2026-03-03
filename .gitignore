@@ -1,0 +1,17 @@
+# APK 构建输出
+build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+local.properties
+
+# Gradle
+.gradle/
+gradle/
+gradlew
+gradlew.bat
+
+# OS
+.DS_Store
+Thumbs.db
