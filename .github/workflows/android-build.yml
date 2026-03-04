@@ -58,20 +58,19 @@ jobs:
             test-output.log
             app/build/reports/tests/
 
-      - name: Notify Telegram on success
+      - name: Send APK to Telegram
         if: success()
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          message: |
-            ✅ Android Build 成功！
+        run: |
+          APK_FILE=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+               -F document=@"$APK_FILE" \
+               -F caption="✅ Build 成功！
 
-            仓库: ${{ github.repository }}
-            分支: ${{ github.ref_name }}
-            提交: ${{ github.event.head_commit.message }}
-            提交者: ${{ github.actor }}
-            运行: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          仓库: ${{ github.repository }}
+          分支: ${{ github.ref_name }}
+          提交: ${{ github.event.head_commit.message }}
+          提交者: ${{ github.actor }}" \
+               "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
 
       - name: Notify Telegram on failure
         if: failure()
