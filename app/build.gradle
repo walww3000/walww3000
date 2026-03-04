@@ -4,21 +4,18 @@ plugins {
 
 android {
     namespace 'com.calendar.app'
-    compileSdk 23
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.calendar.app"
         minSdk 21
-        targetSdk 23
+        targetSdk 34
         versionCode 1
         versionName "1.0"
     }
 
     buildTypes {
         release {
-            minifyEnabled false
-        }
-        debug {
             minifyEnabled false
         }
     }
