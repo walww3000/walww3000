@@ -26,95 +26,31 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace 2>&1 | tee build-output.log
-
-      - name: Get version info
-        id: version
-        run: |
-          VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
-          VERSION_CODE=$(grep 'versionCode' app/build.gradle.kts | sed 's/[^0-9]//g')
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          TAG="v${VERSION_NAME}-build.${VERSION_CODE}-${SHORT_SHA}"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
-
-      - name: Rename APK
-        run: |
-          APK_FILE=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
-          cp "$APK_FILE" "app/build/outputs/apk/debug/DemoApp-${{ steps.version.outputs.tag }}-debug.apk"
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-apk
-          path: app/build/outputs/apk/debug/DemoApp-*.apk
-
-      - name: Run unit tests
-        run: ./gradlew test --stacktrace 2>&1 | tee test-output.log
-
-      - name: Upload logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs
-          path: |
-            build-output.log
-            test-output.log
-            app/build/reports/tests/
+        run: chmod +x gradlew && ./gradlew assembleDebug --stacktrace
 
       - name: Create GitHub Release
-        if: success()
-        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: "DemoApp ${{ steps.version.outputs.tag }}"
+          tag_name: build-${{ github.run_number }}
+          name: "Build #${{ github.run_number }}"
           body: |
-            **自动构建发布**
-
-            - 分支: `${{ github.ref_name }}`
-            - 提交: `${{ github.sha }}`
-            - 提交信息: ${{ github.event.head_commit.message }}
-            - 构建者: ${{ github.actor }}
-          files: app/build/outputs/apk/debug/DemoApp-*.apk
+            分支: `${{ github.ref_name }}`
+            提交: ${{ github.event.head_commit.message }}
+          files: app/build/outputs/apk/debug/*.apk
           make_latest: true
 
       - name: Send APK to Telegram
-        if: success()
+        if: always()
         continue-on-error: true
         run: |
-          APK_FILE=$(find app/build/outputs/apk/debug -name "DemoApp-*.apk" | head -1)
-          curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-               -F document=@"$APK_FILE" \
-               -F caption="✅ Build 成功！ 分支: ${{ github.ref_name }} 版本: ${{ steps.version.outputs.tag }}" \
-               "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
-
-      - name: Notify Telegram on failure
-        if: failure()
-        continue-on-error: true
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          message: |
-            ❌ Android Build 失败！
-
-            仓库: ${{ github.repository }}
-            分支: ${{ github.ref_name }}
-            提交: ${{ github.event.head_commit.message }}
-            提交者: ${{ github.actor }}
-            运行: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            curl -s -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+                 -F document=@"app/build/outputs/apk/debug/app-debug.apk" \
+                 -F caption="✅ Build #${{ github.run_number }} 成功 | ${{ github.ref_name }}" \
+                 "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
+          else
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+                 -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+                 -d text="❌ Build #${{ github.run_number }} 失败 | ${{ github.ref_name }} | https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
