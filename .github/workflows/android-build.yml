@@ -60,20 +60,18 @@ jobs:
 
       - name: Send APK to Telegram
         if: success()
+        continue-on-error: true
         run: |
           APK_FILE=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
-          curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          echo "Sending APK: $APK_FILE"
+          curl -v -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
                -F document=@"$APK_FILE" \
-               -F caption="✅ Build 成功！
-
-          仓库: ${{ github.repository }}
-          分支: ${{ github.ref_name }}
-          提交: ${{ github.event.head_commit.message }}
-          提交者: ${{ github.actor }}" \
+               -F caption="✅ Build 成功！ 分支: ${{ github.ref_name }} 提交者: ${{ github.actor }}" \
                "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
 
       - name: Notify Telegram on failure
         if: failure()
+        continue-on-error: true
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
