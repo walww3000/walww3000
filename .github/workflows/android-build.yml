@@ -44,3 +44,33 @@ jobs:
         with:
           name: debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Notify Telegram on success
+        if: success()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ✅ Android Build 成功！
+
+            仓库: ${{ github.repository }}
+            分支: ${{ github.ref_name }}
+            提交: ${{ github.event.head_commit.message }}
+            提交者: ${{ github.actor }}
+            运行: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ❌ Android Build 失败！
+
+            仓库: ${{ github.repository }}
+            分支: ${{ github.ref_name }}
+            提交: ${{ github.event.head_commit.message }}
+            提交者: ${{ github.actor }}
+            运行: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
