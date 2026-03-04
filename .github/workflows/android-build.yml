@@ -37,7 +37,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace 2>&1 | tee build-output.log
 
       - name: Run unit tests
         run: ./gradlew test --stacktrace
@@ -48,6 +48,20 @@ jobs:
         with:
           name: debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build-output.log
+
+      - name: Print build error summary
+        if: failure()
+        run: |
+          echo "::group::Build Error Summary"
+          grep -iE "(error|FAILURE|failed|exception)" build-output.log | tail -50 || true
+          echo "::endgroup::"
 
       - name: Notify Telegram on success
         if: success()
