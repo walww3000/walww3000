@@ -1,0 +1,55 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ master, 'claude/**' ]
+    paths:
+      - 'ios-demo/**'
+      - '.github/workflows/ios-build.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'ios-demo/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Build iOS App
+        run: |
+          cd ios-demo/CalendarDemo
+          xcodebuild build \
+            -project CalendarDemo.xcodeproj \
+            -scheme CalendarDemo \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -configuration Debug \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            | tail -50
+
+      - name: Notify Telegram (Success)
+        if: success()
+        continue-on-error: true
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="✅ iOS Build #${{ github.run_number }} 成功！%0A分支: ${{ github.ref_name }}%0A提交: ${{ github.event.head_commit.message }}"
+
+      - name: Notify Telegram (Failure)
+        if: failure()
+        continue-on-error: true
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="❌ iOS Build #${{ github.run_number }} 失败！%0A分支: ${{ github.ref_name }}%0A查看: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
