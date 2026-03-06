@@ -1,156 +1,215 @@
-/* ========== Theme Toggle ========== */
-const themeToggle = document.getElementById('themeToggle');
-const html = document.documentElement;
+/* ========== State ========== */
+let currentYear, currentMonth, selectedDate;
+let events = JSON.parse(localStorage.getItem('calendar-events') || '[]');
 
-// Load saved theme
-const savedTheme = localStorage.getItem('blog-theme') || 'light';
-if (savedTheme === 'dark') html.setAttribute('data-theme', 'dark');
+/* ========== Theme ========== */
+const themeToggle = document.getElementById('themeToggle');
+const savedTheme = localStorage.getItem('calendar-theme') || 'light';
+if (savedTheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
 themeToggle.addEventListener('click', () => {
-  const isDark = html.getAttribute('data-theme') === 'dark';
-  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  localStorage.setItem('blog-theme', isDark ? 'light' : 'dark');
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('calendar-theme', isDark ? 'light' : 'dark');
 });
 
-/* ========== Search Toggle ========== */
-const searchToggle = document.getElementById('searchToggle');
-const searchBar = document.getElementById('searchBar');
-const searchInput = document.getElementById('searchInput');
+/* ========== Calendar Rendering ========== */
+const calTitle = document.getElementById('calTitle');
+const calendarGrid = document.getElementById('calendarGrid');
+const eventsDate = document.getElementById('eventsDate');
+const eventsList = document.getElementById('eventsList');
+const emptyMsg = document.getElementById('emptyMsg');
 
-searchToggle.addEventListener('click', () => {
-  const isOpen = searchBar.classList.toggle('open');
-  if (isOpen) {
-    setTimeout(() => searchInput.focus(), 300);
-  }
-});
-
-// Close search on Escape
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && searchBar.classList.contains('open')) {
-    searchBar.classList.remove('open');
-  }
-});
-
-/* ========== Mobile Menu ========== */
-const menuToggle = document.getElementById('menuToggle');
-const mobileNav = document.getElementById('mobileNav');
-
-menuToggle.addEventListener('click', () => {
-  mobileNav.classList.toggle('open');
-  // Animate hamburger icon
-  const spans = menuToggle.querySelectorAll('span');
-  const isOpen = mobileNav.classList.contains('open');
-  if (isOpen) {
-    spans[0].style.transform = 'rotate(45deg) translate(5px, 5px)';
-    spans[1].style.opacity = '0';
-    spans[2].style.transform = 'rotate(-45deg) translate(5px, -5px)';
-  } else {
-    spans[0].style.transform = '';
-    spans[1].style.opacity = '';
-    spans[2].style.transform = '';
-  }
-});
-
-/* ========== Tag Filter ========== */
-const tags = document.querySelectorAll('.tag');
-const posts = document.querySelectorAll('.post-card');
-
-tags.forEach(tag => {
-  tag.addEventListener('click', () => {
-    tags.forEach(t => t.classList.remove('active'));
-    tag.classList.add('active');
-
-    const selected = tag.dataset.tag;
-
-    posts.forEach(post => {
-      if (selected === 'all' || post.dataset.tag === selected) {
-        post.classList.remove('hidden');
-        // Reset animation
-        post.style.animation = 'none';
-        requestAnimationFrame(() => {
-          post.style.animation = '';
-        });
-      } else {
-        post.classList.add('hidden');
-      }
-    });
-  });
-});
-
-/* ========== Search Filter ========== */
-searchInput.addEventListener('input', () => {
-  const query = searchInput.value.toLowerCase().trim();
-
-  posts.forEach(post => {
-    const title = post.querySelector('.post-title')?.textContent.toLowerCase() || '';
-    const excerpt = post.querySelector('.post-excerpt')?.textContent.toLowerCase() || '';
-
-    if (!query || title.includes(query) || excerpt.includes(query)) {
-      post.classList.remove('hidden');
-    } else {
-      post.classList.add('hidden');
-    }
-  });
-});
-
-/* ========== Pagination (demo) ========== */
-const pageBtns = document.querySelectorAll('.page-btn:not(.next)');
-pageBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    pageBtns.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    // Scroll to posts section
-    document.getElementById('posts').scrollIntoView({ behavior: 'smooth' });
-  });
-});
-
-/* ========== Subscribe form ========== */
-function handleSubscribe(e) {
-  e.preventDefault();
-  const input = e.target.querySelector('input[type="email"]');
-  const btn = e.target.querySelector('button');
-  const email = input.value;
-
-  btn.textContent = '订阅中...';
-  btn.disabled = true;
-
-  // Simulate async request
-  setTimeout(() => {
-    input.value = '';
-    btn.textContent = '✓ 订阅成功！';
-    btn.style.background = '#10b981';
-    setTimeout(() => {
-      btn.textContent = '订阅';
-      btn.style.background = '';
-      btn.disabled = false;
-    }, 3000);
-  }, 1000);
+function init() {
+  const today = new Date();
+  currentYear = today.getFullYear();
+  currentMonth = today.getMonth();
+  selectedDate = formatDate(today);
+  renderCalendar();
+  renderEvents();
 }
 
-/* ========== Scroll header shadow ========== */
-const header = document.querySelector('.header');
-window.addEventListener('scroll', () => {
-  if (window.scrollY > 10) {
-    header.style.boxShadow = '0 2px 12px rgba(0,0,0,.08)';
-  } else {
-    header.style.boxShadow = '';
+function formatDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function displayDate(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  return `${y}年${parseInt(m)}月${parseInt(d)}日`;
+}
+
+function renderCalendar() {
+  calTitle.textContent = `${currentYear}年${currentMonth + 1}月`;
+
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const daysInPrev = new Date(currentYear, currentMonth, 0).getDate();
+
+  const todayStr = formatDate(new Date());
+  let html = '';
+
+  // Previous month trailing days
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const day = daysInPrev - i;
+    const d = new Date(currentYear, currentMonth - 1, day);
+    const ds = formatDate(d);
+    html += `<div class="cal-day other-month" data-date="${ds}">${day}</div>`;
   }
-}, { passive: true });
 
-/* ========== Intersection Observer for card animations ========== */
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.style.opacity = '1';
-      entry.target.style.transform = 'translateY(0)';
-      observer.unobserve(entry.target);
-    }
+  // Current month days
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(currentYear, currentMonth, day);
+    const ds = formatDate(d);
+    const isToday = ds === todayStr;
+    const isSelected = ds === selectedDate;
+    const hasEvents = events.some(e => e.date === ds);
+
+    let cls = 'cal-day';
+    if (isToday) cls += ' today';
+    if (isSelected) cls += ' selected';
+
+    html += `<div class="${cls}" data-date="${ds}">${day}${hasEvents ? '<span class="dot"></span>' : ''}</div>`;
+  }
+
+  // Next month leading days
+  const totalCells = firstDay + daysInMonth;
+  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for (let day = 1; day <= remaining; day++) {
+    const d = new Date(currentYear, currentMonth + 1, day);
+    const ds = formatDate(d);
+    html += `<div class="cal-day other-month" data-date="${ds}">${day}</div>`;
+  }
+
+  calendarGrid.innerHTML = html;
+
+  // Click handlers
+  calendarGrid.querySelectorAll('.cal-day').forEach(el => {
+    el.addEventListener('click', () => {
+      selectedDate = el.dataset.date;
+      const [y, m] = selectedDate.split('-').map(Number);
+      currentYear = y;
+      currentMonth = m - 1;
+      renderCalendar();
+      renderEvents();
+    });
   });
-}, { threshold: 0.1 });
+}
 
-document.querySelectorAll('.sidebar-card').forEach(card => {
-  card.style.opacity = '0';
-  card.style.transform = 'translateY(16px)';
-  card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-  observer.observe(card);
+function renderEvents() {
+  eventsDate.textContent = displayDate(selectedDate);
+  const dayEvents = events
+    .filter(e => e.date === selectedDate)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  if (dayEvents.length === 0) {
+    eventsList.innerHTML = '<p class="empty-msg">暂无事件</p>';
+    return;
+  }
+
+  eventsList.innerHTML = dayEvents.map(e => `
+    <div class="event-card">
+      <div class="event-color-bar"></div>
+      <div class="event-info">
+        <div class="event-title">${escapeHtml(e.title)}</div>
+        <div class="event-time">${e.startTime} - ${e.endTime}</div>
+      </div>
+      <button class="event-delete" data-id="${e.id}" title="删除">&times;</button>
+    </div>
+  `).join('');
+
+  // Delete handlers
+  eventsList.querySelectorAll('.event-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      events = events.filter(e => e.id !== btn.dataset.id);
+      saveEvents();
+      renderCalendar();
+      renderEvents();
+    });
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function saveEvents() {
+  localStorage.setItem('calendar-events', JSON.stringify(events));
+}
+
+/* ========== Navigation ========== */
+document.getElementById('prevMonth').addEventListener('click', () => {
+  currentMonth--;
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  renderCalendar();
 });
+
+document.getElementById('nextMonth').addEventListener('click', () => {
+  currentMonth++;
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  renderCalendar();
+});
+
+document.getElementById('todayBtn').addEventListener('click', () => {
+  const today = new Date();
+  currentYear = today.getFullYear();
+  currentMonth = today.getMonth();
+  selectedDate = formatDate(today);
+  renderCalendar();
+  renderEvents();
+});
+
+/* ========== Modal ========== */
+const modalOverlay = document.getElementById('modalOverlay');
+const eventForm = document.getElementById('eventForm');
+
+document.getElementById('addBtn').addEventListener('click', () => {
+  modalOverlay.classList.add('open');
+  document.getElementById('eventTitle').focus();
+});
+
+function closeModal() {
+  modalOverlay.classList.remove('open');
+  eventForm.reset();
+}
+
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('cancelBtn').addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) closeModal();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+
+eventForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const title = document.getElementById('eventTitle').value.trim();
+  const startTime = document.getElementById('eventStart').value;
+  const endTime = document.getElementById('eventEnd').value;
+  const desc = document.getElementById('eventDesc').value.trim();
+
+  if (!title || !startTime || !endTime) return;
+
+  events.push({
+    id: Date.now().toString(),
+    title,
+    description: desc,
+    date: selectedDate,
+    startTime,
+    endTime
+  });
+
+  saveEvents();
+  closeModal();
+  renderCalendar();
+  renderEvents();
+});
+
+/* ========== Init ========== */
+init();
